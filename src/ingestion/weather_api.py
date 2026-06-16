@@ -36,5 +36,6 @@ def get_weather(city):
         ).get(
             "1h",
             0
-        )
+        ),
+        "humidity": data["main"]["humidity"]
     }
