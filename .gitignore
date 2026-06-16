@@ -3,4 +3,12 @@ __pycache__/
 .ipynb_checkpoints/
 *.pyc
 .env
+
 mlruns/
+mlflow.db
+
+data/raw/
+data/processed/
+
+models/*.pkl
+models/*.h5
