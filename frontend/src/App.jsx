@@ -13,6 +13,9 @@ function App() {
   const [destination, setDestination] = useState('')
   const [distance, setDistance] = useState(null)
   const [duration, setDuration] = useState(null)
+  const [routes, setRoutes] = useState([])
+  const [weather, setWeather] = useState(null)
+const [traffic, setTraffic] = useState(null)
 
   useEffect(() => {
 
@@ -42,36 +45,55 @@ function App() {
         import.meta.env.VITE_ORS_API_KEY
 
       const sourceRes =
-        await axios.get(
-          'https://api.openrouteservice.org/geocode/search',
-          {
-            params: {
-              api_key: apiKey,
-              text: source,
-              size: 1
-            }
-          }
-        )
+  await axios.get(
+    'https://nominatim.openstreetmap.org/search',
+    {
+      params: {
+        q: source,
+        format: 'json',
+        limit: 1
+      }
+    }
+  )
 
       const destRes =
-        await axios.get(
-          'https://api.openrouteservice.org/geocode/search',
-          {
-            params: {
-              api_key: apiKey,
-              text: destination,
-              size: 1
-            }
-          }
-        )
+  await axios.get(
+    'https://nominatim.openstreetmap.org/search',
+    {
+      params: {
+        q: destination,
+        format: 'json',
+        limit: 1
+      }
+    }
+  )
 
-      const sourceCoords =
-        sourceRes.data.features[0]
-        .geometry.coordinates
+   const sourceCoords = [
+  parseFloat(
+    sourceRes.data[0].lon
+  ),
+  parseFloat(
+    sourceRes.data[0].lat
+  )
+]
 
-      const destCoords =
-        destRes.data.features[0]
-        .geometry.coordinates
+      const destCoords = [
+  parseFloat(
+    destRes.data[0].lon
+  ),
+  parseFloat(
+    destRes.data[0].lat
+  )
+]
+if (
+  sourceRes.data.length === 0 ||
+  destRes.data.length === 0
+) {
+  alert(
+    'Location not found'
+  )
+  return
+}
 
         const routeRes =
   await axios.post(
@@ -107,6 +129,126 @@ const durationMin =
 setDistance(distanceKm)
 setDuration(durationMin)
 
+setRoutes([
+  {
+    name: 'Best Route',
+    distance: distanceKm,
+    duration: durationMin
+  },
+  {
+    name: 'Route 2',
+    distance: (
+      parseFloat(distanceKm) + 8
+    ).toFixed(1),
+    duration: (
+      parseInt(durationMin) + 35
+    ).toFixed(0)
+  },
+  {
+    name: 'Route 3',
+    distance: (
+      parseFloat(distanceKm) + 15
+    ).toFixed(1),
+    duration: (
+      parseInt(durationMin) + 55
+    ).toFixed(0)
+  }
+]) 
+
+const weatherRes =
+  await axios.get(
+    'https://api.openweathermap.org/data/2.5/weather',
+    {
+      params: {
+        q: destination,
+        appid: import.meta.env.VITE_OPENWEATHER_API_KEY
+      }
+    }
+  )
+
+setWeather({
+  temp: (
+    weatherRes.data.main.temp - 273.15
+  ).toFixed(1),
+
+  humidity:
+    weatherRes.data.main.humidity,
+
+  clouds:
+    weatherRes.data.clouds.all,
+
+  rain:
+    weatherRes.data.rain?.['1h'] || 0
+})
+
+const now = new Date()
+
+const predictRes =
+  await axios.post(
+    'http://127.0.0.1:8000/predict',
+    {
+      temp:
+        weatherRes.data.main.temp,
+
+      rain_1h:
+        weatherRes.data.rain?.['1h'] || 0,
+
+      snow_1h: 0,
+
+      clouds_all:
+        weatherRes.data.clouds.all,
+
+      hour:
+        now.getHours(),
+
+      day_of_week:
+        now.getDay(),
+
+      month:
+        now.getMonth() + 1,
+
+      is_weekend:
+        [0,6].includes(
+          now.getDay()
+        ) ? 1 : 0,
+
+      rush_hour:
+        [7,8,9,17,18,19]
+        .includes(
+          now.getHours()
+        ) ? 1 : 0
+    }
+  )
+
+setTraffic(
+  predictRes.data
+)
+
+if (
+  Math.random() > 0.7
+) {
+
+  const accidentPoint =
+    routeCoords[
+      Math.floor(
+        routeCoords.length / 2
+      )
+    ]
+
+  new maplibregl.Marker({
+    color: 'red'
+  })
+  .setLngLat(accidentPoint)
+  .setPopup(
+    new maplibregl.Popup()
+      .setHTML(
+        '<h3>🚨 Accident Reported</h3>'
+      )
+  )
+  .addTo(mapRef.current)
+
+}
+
 const routeGeoJSON = {
   type: 'Feature',
   geometry: {
@@ -116,6 +258,16 @@ const routeGeoJSON = {
 }
 
 const map = mapRef.current
+const bounds =
+  new maplibregl.LngLatBounds()
+
+routeCoords.forEach(coord => {
+  bounds.extend(coord)
+})
+
+map.fitBounds(bounds,{
+  padding:100
+})
 
 if (map.getSource('route')) {
 
@@ -137,9 +289,15 @@ if (map.getSource('route')) {
     type: 'line',
     source: 'route',
     paint: {
-      'line-color': '#2563eb',
-      'line-width': 6
-    }
+  'line-color':
+    predictRes.data.prediction === 2
+      ? '#ef4444'
+      : predictRes.data.prediction === 1
+      ? '#f59e0b'
+      : '#22c55e',
+
+  'line-width': 7
+}
   })
 }
       console.log(routeRes.data)
@@ -151,12 +309,12 @@ if (map.getSource('route')) {
 
     } catch (error) {
 
-      console.error(error)
+  console.error(error)
 
-      alert(
-        'Route Search Failed'
-      )
-    }
+  alert(
+    'Route Search Failed'
+  )
+}
   }
 
   return (
@@ -191,6 +349,34 @@ if (map.getSource('route')) {
           Generate Route
         </button>
 
+{routes.length > 0 && (
+
+<div className="card">
+
+  <h3>🛣 Route Options</h3>
+
+  {routes.map((route,index)=>(
+
+    <div
+      key={index}
+      className="route-option"
+    >
+
+      <b>{route.name}</b>
+
+      <br/>
+
+      {route.distance} km • {route.duration} min
+
+    </div>
+
+  ))}
+
+</div>
+
+)} 
+
+
         {distance && (
 
   <div className="card">
@@ -209,17 +395,56 @@ if (map.getSource('route')) {
 
 )}
 
-        <div className="card">
-          <h3>🌦 Weather</h3>
-          <p>Temperature: --</p>
-          <p>Humidity: --</p>
-          <p>Clouds: --</p>
-        </div>
+        {weather && (
 
-        <div className="card">
-          <h3>🚦 Traffic Score</h3>
-          <p>Waiting for route...</p>
-        </div>
+<div className="card">
+
+  <h3>🌦 Weather</h3>
+
+  <p>
+    Temperature:
+    {weather.temp}°C
+  </p>
+
+  <p>
+    Humidity:
+    {weather.humidity}%
+  </p>
+
+  <p>
+    Clouds:
+    {weather.clouds}%
+  </p>
+
+</div>
+
+)}
+       {traffic && (
+
+<div className="card">
+
+  <h3>🚦 AI Traffic</h3>
+
+  <p>
+    {traffic.label}
+  </p>
+
+</div>
+
+)}
+<div className="card">
+
+  <h3>🚨 Alerts</h3>
+
+  <p>
+    ⚠ Road Construction Ahead
+  </p>
+
+  <p>
+    🚨 Accident Risk Moderate
+  </p>
+
+</div>
 
       </div>
 

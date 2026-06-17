@@ -15,17 +15,33 @@ body,
 }
 
 .app{
-  width:100%;
-  height:100%;
-  display:flex;
+  width:100vw;
+  height:100vh;
+  position:relative;
 }
 
 .sidebar{
-  width:350px;
-  min-width:350px;
-  background:#1f2937;
-  color:white;
+  position:absolute;
+
+  top:20px;
+  left:20px;
+
+  width:380px;
+
+  background:white;
+  color:black;
+
   padding:20px;
+
+  border-radius:20px;
+
+  z-index:1000;
+
+  box-shadow:
+  0 10px 30px rgba(0,0,0,.2);
+  height:95vh;
+  overflow-y:auto;
+  overflow-x:hidden;
 }
 
 .input{
@@ -53,8 +69,8 @@ body,
 }
 
 .map-container{
-  flex:1;
-  position:relative;
+  width:100vw;
+  height:100vh;
 }
 
 .maplibregl-map{
@@ -63,4 +79,28 @@ body,
   left:0;
   right:0;
   bottom:0;
+}
+
+.route-option{
+  margin-top:10px;
+  padding:14px;
+  border-radius:12px;
+  background:white;
+  border:1px solid #e5e7eb;
+  cursor:pointer;
+  transition:.2s;
+}
+
+.route-option:hover{
+  transform:scale(1.03);
+  background:#f8fafc;
+}
+
+.sidebar::-webkit-scrollbar{
+  width:8px;
+}
+
+.sidebar::-webkit-scrollbar-thumb{
+  background:#cbd5e1;
+  border-radius:10px;
 }
