@@ -37,9 +37,16 @@ if st.button("Predict"):
         "rush_hour": rush
     }
 
-    response = requests.post(
-        "http://127.0.0.1:8000/predict",
-        json=payload
-    )
+    result = response.json()
 
+label = result["label"]
+
+if label == "Low Traffic":
+    st.success(label)
+
+elif label == "Medium Traffic":
+    st.warning(label)
+
+else:
+    st.error(label)
     st.json(response.json())
